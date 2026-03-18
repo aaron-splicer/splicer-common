@@ -1,4 +1,4 @@
-package io.splicer.service;
+package io.splicer.common;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
