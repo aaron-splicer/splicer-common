@@ -3,7 +3,6 @@ package io.splicer.common.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.*;
-import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.HttpClientErrorException;
 
@@ -11,10 +10,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
- * Service for interacting with GitHub API.
- * Provides methods to read, write, and list files in a GitHub repository.
+ * Base GitHub API service. Subclassed by workbench and teamcoder
+ * for service-specific extensions. Do NOT annotate with @Service —
+ * only the subclasses should be Spring beans.
  */
-@Service
 public class GitHubService {
 
     private final Logger log = LoggerFactory.getLogger(GitHubService.class);
