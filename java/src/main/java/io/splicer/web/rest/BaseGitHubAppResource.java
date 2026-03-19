@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.view.RedirectView;
 
@@ -50,6 +52,11 @@ public abstract class BaseGitHubAppResource {
      * Build the OAuth status response map from the branch-specific entity.
      */
     protected abstract Map<String, Object> buildOAuthStatusResponse(Long appTemplateId);
+
+    /**
+     * Save the selected branch to the AppTemplate.
+     */
+    protected abstract void saveBranch(Long appTemplateId, String branch);
 
     /**
      * GET /api/github-app/install : Start GitHub App installation flow
@@ -207,6 +214,53 @@ public abstract class BaseGitHubAppResource {
     public ResponseEntity<Map<String, Object>> getOAuthStatus(@RequestParam Long appTemplateId) {
         log.debug("REST request to get GitHub OAuth status for AppTemplate: {}", appTemplateId);
         return ResponseEntity.ok(buildOAuthStatusResponse(appTemplateId));
+    }
+
+    /**
+     * GET /api/github-app/branches : List branches for the AppTemplate's repository
+     */
+    @GetMapping("/branches")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<List<String>> listBranches(@RequestParam Long appTemplateId) {
+        log.debug("REST request to list branches for AppTemplate: {}", appTemplateId);
+
+        Map<String, Object> status = buildOAuthStatusResponse(appTemplateId);
+        String repositoryUrl = (String) status.get("repositoryUrl");
+        if (repositoryUrl == null || repositoryUrl.isEmpty()) {
+            throw new io.splicer.web.rest.errors.BadRequestAlertException(
+                "No repository URL configured", "gitHubApp", "norepourl");
+        }
+
+        String[] parsed = BaseGitHubAppService.parseAppNameFromRepo(repositoryUrl);
+        if (parsed == null) {
+            throw new io.splicer.web.rest.errors.BadRequestAlertException(
+                "Cannot parse repository URL: " + repositoryUrl, "gitHubApp", "badrepourl");
+        }
+
+        // Get installationId from the status — subclass must include it, or we look it up
+        // We need installationId; re-read from the AppTemplate via a second status field
+        Long installationId = status.get("installationId") != null
+            ? ((Number) status.get("installationId")).longValue() : null;
+        if (installationId == null) {
+            throw new io.splicer.web.rest.errors.BadRequestAlertException(
+                "No GitHub installation found for this AppTemplate", "gitHubApp", "noinstallation");
+        }
+
+        List<String> branches = gitHubAppService.listRepositoryBranches(installationId, parsed[0], parsed[1]);
+        return ResponseEntity.ok(branches);
+    }
+
+    /**
+     * PUT /api/github-app/branch : Set the develop branch for an AppTemplate
+     */
+    @PutMapping("/branch")
+    public ResponseEntity<Void> setBranch(@RequestBody Map<String, Object> body) {
+        Long appTemplateId = ((Number) body.get("appTemplateId")).longValue();
+        String branch = (String) body.get("branch");
+        log.debug("REST request to set branch '{}' for AppTemplate: {}", branch, appTemplateId);
+
+        saveBranch(appTemplateId, branch);
+        return ResponseEntity.ok().build();
     }
 
     /**

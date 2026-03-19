@@ -434,6 +434,36 @@ public class BaseGitHubAppService {
     }
 
     /**
+     * List branches for a repository using an installation token.
+     *
+     * @param installationId GitHub App installation ID
+     * @param owner Repository owner
+     * @param repo Repository name
+     * @return List of branch name strings
+     */
+    public List<String> listRepositoryBranches(Long installationId, String owner, String repo) {
+        String token = getInstallationToken(installationId);
+
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + token);
+        headers.set("Accept", "application/vnd.github+json");
+
+        ResponseEntity<List> response = restTemplate.exchange(
+            GITHUB_API_BASE + "/repos/" + owner + "/" + repo + "/branches?per_page=100",
+            HttpMethod.GET, new HttpEntity<>(headers), List.class);
+
+        List<Map<String, Object>> branches = response.getBody();
+        List<String> branchNames = new ArrayList<>();
+        if (branches != null) {
+            for (Map<String, Object> branch : branches) {
+                branchNames.add((String) branch.get("name"));
+            }
+        }
+        return branchNames;
+    }
+
+    /**
      * Delete a branch from a repository.
      */
     protected void deleteSourceBranch(RestTemplate restTemplate, String token,
