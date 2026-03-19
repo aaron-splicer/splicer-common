@@ -279,7 +279,7 @@ public abstract class BaseGitHubAppResource {
     /**
      * DELETE /api/github-app/revoke : Revoke OAuth — delete GitHub installation and clear AppTemplate fields
      */
-    @org.springframework.web.bind.annotation.DeleteMapping("/revoke")
+    @org.springframework.web.bind.annotation.PostMapping("/revoke")
     public ResponseEntity<Void> revoke(@RequestParam Long appTemplateId) {
         log.info("REST request to revoke GitHub OAuth for AppTemplate: {}", appTemplateId);
 
