@@ -325,6 +325,27 @@ public class BaseGitHubAppService {
     }
 
     /**
+     * Delete a GitHub App installation.
+     *
+     * @param installationId GitHub App installation ID
+     */
+    public void deleteInstallation(Long installationId) {
+        validateAppConfigMinimal();
+        String jwt = generateJWT();
+
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + jwt);
+        headers.set("Accept", "application/vnd.github+json");
+
+        restTemplate.exchange(
+            GITHUB_API_BASE + "/app/installations/" + installationId,
+            HttpMethod.DELETE, new HttpEntity<>(headers), Void.class);
+
+        log.info("Deleted GitHub App installation: {}", installationId);
+    }
+
+    /**
      * Get repositories accessible by an installation.
      *
      * @param installationId GitHub App installation ID

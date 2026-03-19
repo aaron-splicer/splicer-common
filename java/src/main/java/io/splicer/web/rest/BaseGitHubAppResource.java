@@ -71,6 +71,19 @@ public abstract class BaseGitHubAppResource {
         log.debug("Starting GitHub App installation for AppTemplate: {} with repo: {}, origin: {}", appTemplateId, repositoryUrl, origin);
 
         try {
+            // Remove previous GitHub App installation if one exists (#848)
+            try {
+                Map<String, Object> status = buildOAuthStatusResponse(appTemplateId);
+                Object existingId = status.get("installationId");
+                if (existingId != null) {
+                    Long oldInstallationId = ((Number) existingId).longValue();
+                    log.info("Deleting previous GitHub App installation {} before reconnect", oldInstallationId);
+                    gitHubAppService.deleteInstallation(oldInstallationId);
+                }
+            } catch (Exception e) {
+                log.warn("Could not delete previous installation (may already be removed): {}", e.getMessage());
+            }
+
             String installUrl = gitHubAppService.getInstallationUrl(appTemplateId, repositoryUrl, origin);
             return new RedirectView(installUrl);
         } catch (Exception e) {
