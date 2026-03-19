@@ -208,7 +208,7 @@ public class BaseExceptionTranslator implements ProblemHandling, SecurityAdviceT
         return sanitized;
     }
 
-    private static String stripNonAscii(String value) {
+    static String stripNonAscii(String value) {
         if (value == null) return null;
         StringBuilder sb = new StringBuilder(value.length());
         for (int i = 0; i < value.length(); i++) {
