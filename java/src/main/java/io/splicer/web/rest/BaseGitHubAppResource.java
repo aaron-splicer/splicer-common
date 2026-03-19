@@ -277,6 +277,34 @@ public abstract class BaseGitHubAppResource {
     }
 
     /**
+     * DELETE /api/github-app/revoke : Revoke OAuth — delete GitHub installation and clear AppTemplate fields
+     */
+    @org.springframework.web.bind.annotation.DeleteMapping("/revoke")
+    public ResponseEntity<Void> revoke(@RequestParam Long appTemplateId) {
+        log.info("REST request to revoke GitHub OAuth for AppTemplate: {}", appTemplateId);
+
+        Map<String, Object> status = buildOAuthStatusResponse(appTemplateId);
+        Object existingId = status.get("installationId");
+        if (existingId != null) {
+            Long installationId = ((Number) existingId).longValue();
+            try {
+                gitHubAppService.deleteInstallation(installationId);
+                log.info("Deleted GitHub App installation {}", installationId);
+            } catch (Exception e) {
+                log.warn("Could not delete GitHub installation {}: {}", installationId, e.getMessage());
+            }
+        }
+
+        clearInstallation(appTemplateId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Clear all GitHub OAuth fields on the AppTemplate.
+     */
+    protected abstract void clearInstallation(Long appTemplateId);
+
+    /**
      * Resolve a relative URL to an absolute URL using the request's scheme/host/port.
      */
     protected String resolveAbsoluteUrl(String url, HttpServletRequest request) {
