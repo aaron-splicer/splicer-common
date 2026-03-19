@@ -1,4 +1,4 @@
-package io.splicer.common.service;
+package io.splicer.service;
 
 import io.splicer.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
@@ -24,12 +24,11 @@ import io.jsonwebtoken.SignatureAlgorithm;
  * Provides OAuth flow, JWT authentication, and installation token generation.
  *
  * Subclass in each consuming project and annotate with @Service.
- * Do NOT annotate this base class with @Service — both io.splicer.common.service
- * and io.splicer.service are under the io.splicer component scan.
+ * Do NOT annotate this base class with @Service.
  */
-public class GitHubAppService {
+public class BaseGitHubAppService {
 
-    private final Logger log = LoggerFactory.getLogger(GitHubAppService.class);
+    private final Logger log = LoggerFactory.getLogger(BaseGitHubAppService.class);
 
     @Value("${github.app.id:}")
     private String appId;

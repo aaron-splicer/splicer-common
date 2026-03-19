@@ -1,4 +1,4 @@
-package io.splicer.common.service;
+package io.splicer.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,9 +14,9 @@ import java.util.*;
  * for service-specific extensions. Do NOT annotate with @Service —
  * only the subclasses should be Spring beans.
  */
-public class GitHubService {
+public class BaseGitHubService {
 
-    private final Logger log = LoggerFactory.getLogger(GitHubService.class);
+    private final Logger log = LoggerFactory.getLogger(BaseGitHubService.class);
     private static final String GITHUB_API_BASE = "https://api.github.com";
 
     /**
