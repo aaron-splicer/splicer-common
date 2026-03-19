@@ -303,6 +303,28 @@ public class BaseGitHubAppService {
     }
 
     /**
+     * Get installation details including the account that installed the app.
+     *
+     * @param installationId GitHub App installation ID
+     * @return Installation details map (includes account.login, account.type, etc.)
+     */
+    public Map<String, Object> getInstallation(Long installationId) {
+        validateAppConfigMinimal();
+        String jwt = generateJWT();
+
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + jwt);
+        headers.set("Accept", "application/vnd.github+json");
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+            GITHUB_API_BASE + "/app/installations/" + installationId,
+            HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+
+        return response.getBody();
+    }
+
+    /**
      * Get repositories accessible by an installation.
      *
      * @param installationId GitHub App installation ID
