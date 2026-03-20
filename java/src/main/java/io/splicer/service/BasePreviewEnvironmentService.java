@@ -84,24 +84,18 @@ public abstract class BasePreviewEnvironmentService {
     protected abstract DeploymentConfig resolveDeploymentConfig(Long appTemplateId, String branch) throws DeploymentException;
 
     /**
-     * Deploy a preview environment for an AppTemplate.
-     *
-     * @param appTemplateId AppTemplate ID
-     * @param branch optional branch override (null = use AppTemplate.developBranch)
-     * @return DeploymentResult with preview URL
-     * @throws DeploymentException if deployment fails
+     * Start a preview environment deployment (non-blocking).
+     * Returns immediately with executionId and previewUrl.
+     * Frontend polls getPreviewStatus() until complete.
      */
-    public DeploymentResult deployPreview(Long appTemplateId, String branch) throws DeploymentException {
+    public StartResult startPreviewDeploy(Long appTemplateId, String branch) throws DeploymentException {
         log.info("Starting preview environment deployment for AppTemplate ID: {}", appTemplateId);
 
-        // 1. Resolve config (subclass handles entity loading, auth, ownership)
         DeploymentConfig config = resolveDeploymentConfig(appTemplateId, branch);
 
-        // 2. Generate PREVIEW_ID
         String previewId = generatePreviewId(config.appTemplateId);
         log.info("PREVIEW_ID: {}, CLUSTER: {}", previewId, SHARED_PREVIEW_CLUSTER);
 
-        // 3. Start CodePipeline execution
         log.info("Starting CodePipeline execution: {}", pipelineName);
         String executionId;
         try {
@@ -111,14 +105,46 @@ public abstract class BasePreviewEnvironmentService {
             throw new DeploymentException("Failed to start CodePipeline execution: " + e.getMessage(), e);
         }
 
-        // 4. Wait for pipeline to complete
+        String previewUrl = generatePreviewUrl(previewId);
+        String imageUri = String.format("663099330265.dkr.ecr.us-east-1.amazonaws.com/gateway:%s", previewId);
+
+        return new StartResult(executionId, previewUrl, imageUri);
+    }
+
+    /**
+     * Poll pipeline execution status.
+     * Returns current status: InProgress, Succeeded, Failed, etc.
+     */
+    public StatusResult getPreviewStatus(String executionId) {
+        try {
+            GetPipelineExecutionRequest request = new GetPipelineExecutionRequest()
+                .withPipelineName(pipelineName)
+                .withPipelineExecutionId(executionId);
+
+            GetPipelineExecutionResult result = codePipelineClient.getPipelineExecution(request);
+            String status = result.getPipelineExecution().getStatus();
+            log.info("Pipeline execution status: {}", status);
+            return new StatusResult(executionId, status);
+        } catch (Exception e) {
+            log.error("Failed to get pipeline status for {}: {}", executionId, e.getMessage());
+            return new StatusResult(executionId, "Error", e.getMessage());
+        }
+    }
+
+    /**
+     * Blocking deploy — starts pipeline and waits for completion.
+     * Used by triggerProductionDeploy on workbench (not called via Cloudflare).
+     */
+    public DeploymentResult deployPreview(Long appTemplateId, String branch) throws DeploymentException {
+        StartResult start = startPreviewDeploy(appTemplateId, branch);
+
         log.info("Waiting for pipeline execution to complete...");
         List<String> pipelineOutput = new ArrayList<>();
         try {
             log.info("Waiting 5 seconds for pipeline execution to be registered...");
             Thread.sleep(5000);
 
-            waitForPipelineCompletion(executionId, pipelineOutput);
+            waitForPipelineCompletion(start.getExecutionId(), pipelineOutput);
             log.info("Pipeline execution completed successfully");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -127,14 +153,8 @@ public abstract class BasePreviewEnvironmentService {
             throw new DeploymentException("Pipeline execution failed: " + e.getMessage(), pipelineOutput, e);
         }
 
-        // 5. Build result
-        String imageUri = String.format("663099330265.dkr.ecr.us-east-1.amazonaws.com/gateway:%s", previewId);
-        String previewUrl = generatePreviewUrl(previewId);
-
-        log.info("Successfully deployed preview environment: {}", previewUrl);
-        log.info("DNS will be automatically created by lambda: {}.{}", previewId, ROUTE53_DOMAIN);
-
-        return new DeploymentResult(previewUrl, imageUri, pipelineOutput);
+        log.info("Successfully deployed preview environment: {}", start.getPreviewUrl());
+        return new DeploymentResult(start.getPreviewUrl(), start.getImageUri(), pipelineOutput);
     }
 
     private String startPipelineExecution(String previewId, DeploymentConfig config) {
@@ -239,6 +259,51 @@ public abstract class BasePreviewEnvironmentService {
     }
 
     // ---- Inner classes ----
+
+    /**
+     * Result of starting a preview deployment (non-blocking).
+     */
+    public static class StartResult {
+        private final String executionId;
+        private final String previewUrl;
+        private final String imageUri;
+
+        public StartResult(String executionId, String previewUrl, String imageUri) {
+            this.executionId = executionId;
+            this.previewUrl = previewUrl;
+            this.imageUri = imageUri;
+        }
+
+        public String getExecutionId() { return executionId; }
+        public String getPreviewUrl() { return previewUrl; }
+        public String getImageUri() { return imageUri; }
+    }
+
+    /**
+     * Pipeline execution status.
+     */
+    public static class StatusResult {
+        private final String executionId;
+        private final String status;
+        private final String error;
+
+        public StatusResult(String executionId, String status) {
+            this.executionId = executionId;
+            this.status = status;
+            this.error = null;
+        }
+
+        public StatusResult(String executionId, String status, String error) {
+            this.executionId = executionId;
+            this.status = status;
+            this.error = error;
+        }
+
+        public String getExecutionId() { return executionId; }
+        public String getStatus() { return status; }
+        public String getError() { return error; }
+    }
+
 
     /**
      * Configuration resolved by subclass, used by base to drive pipeline execution.
