@@ -223,6 +223,21 @@ public abstract class BasePreviewEnvironmentService {
         return String.format("http://%s-gateway-app.%s:8080", previewId, ROUTE53_DOMAIN);
     }
 
+    /** Expose pipeline client for subclass production deploy. */
+    protected AWSCodePipeline getCodePipelineClient() {
+        return codePipelineClient;
+    }
+
+    /** Expose pipeline name for subclass production deploy. */
+    protected String getPipelineName() {
+        return pipelineName;
+    }
+
+    /** Expose wait logic for subclass production deploy. */
+    protected void waitForCompletion(String executionId, List<String> output) throws Exception {
+        waitForPipelineCompletion(executionId, output);
+    }
+
     // ---- Inner classes ----
 
     /**
