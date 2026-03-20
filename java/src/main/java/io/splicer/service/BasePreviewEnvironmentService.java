@@ -132,7 +132,7 @@ public abstract class BasePreviewEnvironmentService {
         String previewUrl = generatePreviewUrl(previewId);
 
         log.info("Successfully deployed preview environment: {}", previewUrl);
-        log.info("DNS will be automatically created by lambda: {}-gateway-app.{}", previewId, ROUTE53_DOMAIN);
+        log.info("DNS will be automatically created by lambda: {}.{}", previewId, ROUTE53_DOMAIN);
 
         return new DeploymentResult(previewUrl, imageUri, pipelineOutput);
     }
@@ -220,7 +220,7 @@ public abstract class BasePreviewEnvironmentService {
     }
 
     protected String generatePreviewUrl(String previewId) {
-        return String.format("http://%s-gateway-app.%s:8080", previewId, ROUTE53_DOMAIN);
+        return String.format("http://%s.%s:8080", previewId, ROUTE53_DOMAIN);
     }
 
     /** Expose pipeline client for subclass production deploy. */
