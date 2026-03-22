@@ -280,7 +280,31 @@ public class BaseGitHubAppService {
                 GITHUB_API_BASE + "/user",
                 HttpMethod.GET, request, Map.class);
 
-            return response.getBody();
+            Map<String, Object> userInfo = response.getBody();
+
+            // /user only returns email if the user has a public email set.
+            // Fall back to /user/emails to get the primary verified email.
+            if (userInfo != null && (userInfo.get("email") == null || "".equals(userInfo.get("email")))) {
+                try {
+                    ResponseEntity<List> emailsResponse = restTemplate.exchange(
+                        GITHUB_API_BASE + "/user/emails",
+                        HttpMethod.GET, request, List.class);
+                    List<Map<String, Object>> emails = emailsResponse.getBody();
+                    if (emails != null) {
+                        for (Map<String, Object> emailEntry : emails) {
+                            if (Boolean.TRUE.equals(emailEntry.get("primary")) && Boolean.TRUE.equals(emailEntry.get("verified"))) {
+                                userInfo.put("email", emailEntry.get("email"));
+                                log.info("Found primary verified email via /user/emails: {}", emailEntry.get("email"));
+                                break;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Could not fetch /user/emails (permission may not be granted)", e);
+                }
+            }
+
+            return userInfo;
         } catch (Exception e) {
             log.error("Error getting GitHub user", e);
             throw new BadRequestAlertException("Failed to get GitHub user: " + e.getMessage(), "gitHubApp", "getuserfailed");
